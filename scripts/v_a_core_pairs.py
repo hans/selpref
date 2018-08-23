@@ -1,51 +1,41 @@
+#encoding: utf-8
 from argparse import ArgumentParser
-from collections import defaultdict
 from pathlib import Path
 
 p = ArgumentParser()
-p.add_argument("corpus_file", type=Path)
-p.add_argument("out_dir", type=Path)
-p.add_argument("--dependency", action="append", help="Specify a dependency relation to extract")
-
+p.add_argument("inp", type = Path)
+p.add_argument("out_folder", type = Path)
+p.add_argument("--dependency", action = "append", help = "Specify at least one dependency relationship to be extracted")
+p.add_argument("--language", help = "Specify the language of input file")
 args = p.parse_args()
 
-###
-
-corpus_f = args.corpus_file.open("rb")
-out_files = {dependency: (out_dir / "%s.tsv" % dependency).open("a")
-			 for dependency in args.dependency}
-# file1 = open('/Users/ariaduan1.0/Desktop/summer_experiment/Roger/projects/Jon/Selectional_preference/UD_data/cs_UD','rb')
-# fileout1 = open('/Users/ariaduan1.0/Desktop/summer_experiment/Roger/projects/Jon/Selectional_preference/core/cs/v_a_obj_cs','a',encoding = 'utf-8')
-# fileout2 = open('/Users/ariaduan1.0/Desktop/summer_experiment/Roger/projects/Jon/Selectional_preference/core/cs/v_a_iobj_cs','a',encoding = 'utf-8')
-# fileout3 = open('/Users/ariaduan1.0/Desktop/summer_experiment/Roger/projects/Jon/Selectional_preference/core/cs/v_a_subj_cs','a',encoding = 'utf-8')
+out_folder = args.out_folder
+language = args.language
+inp = args.inp.open("rb")
+out_files = {dependency: (out_folder / "v_a_{}_{}".format(dependency, language)).open("a") for dependency in args.dependency}
+deps = {dependency: {} for dependency in args.dependency}
 
 verbs = {}
-relations = defaultdict(dict)
-for line in file1:
+for line in inp:
 	line = line.decode('utf-8').split()
 	if len(line) == 0:
 		continue
 	if line[0] == '#':
-		# Sentence complete -- process and output located dependencies
-		for dependency, dep_dict in relations:
-			for index, (token, head_index) in dep_dict.items():
-				if head_index in verbs:
-					verb = verbs[head_index]
-					out_files[dependency].write("%s\t%s\n" % verb, token)
-
-		file1.readline()
-
-		# Empty accumulators
+		for dep in deps:
+			for i in deps[dep]:
+				if deps[dep][i][1] in verbs:
+					out_files[dep].write(verbs[deps[dep][i][1]] + '\t' + deps[dep][i][0] + '\n')
+		inp.readline()
 		verbs = {}
-		relations = defaultdict(dict)
+		for dep in deps:
+			deps[dep] = {}
 		continue
-
 	if line[3] == "VERB":
-		verbs[line[0]] = line[2]#for Chinese line[2] is replaced by line[1]
-	for dependency in args.dependency:
-		if line[7] == dependency:
-			relations[dependency][line[0]] = (line[2], line[6])#for Chinese line[2] is replaced by line[1]
+		verbs[line[0]] = line[2] #for Chinese line[2] is replaced by line[1]
+	for dep in deps:
+		if line[7] == dep:
+			deps[dep][line[0]] = [line[2], line[6]] #for Chinese line[2] is replaced by line[1]
 
-corpus_f.close()
-for out_file in out_files.values()
-	out_file.close()
+inp.close()
+for dep in out_files:
+	out_files[dep].close()
