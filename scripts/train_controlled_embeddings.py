@@ -15,6 +15,8 @@ L = logging.getLogger(__name__)
 
 
 def main(args, glove_args):
+    args.out_dir.mkdir(parents=True)
+
     with tqdm(total=5) as pbar:
         # Build vocabulary.
         vocab_path = args.out_dir / "vocab.txt"
