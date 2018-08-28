@@ -24,7 +24,7 @@ def main(args, glove_args):
                     vocab_path.open("w") as vocab:
                 L.debug("%s", [args.glove_bin / "voab_count"] + glove_args)
                 ret = run([args.glove_bin / "vocab_count"] + glove_args,
-                           input=corpus, stdout=vocab)
+                           stdin=corpus, stdout=vocab)
                 if ret.returncode != 0:
                     raise RuntimeError("Vocab prep exited with error code %i" % ret.returncode)
         pbar.update(1)
@@ -34,7 +34,7 @@ def main(args, glove_args):
             exclusions = [line.strip().split() for line in exclusions_f if line.strip()]
         with vocab_path.open("r") as vocab_f:
             vocab = frozenset(line.strip().split()[0] for line in vocab_f if line.strip())
-        for i, (w1, w2) in exclusions:
+        for i, (w1, w2) in enumerate(exclusions):
             if w1 not in vocab:
                 L.warning("Exclusion #%i: w1 '%s' not in vocab", i + 1, w1)
             if w2 not in vocab:
@@ -49,7 +49,7 @@ def main(args, glove_args):
                     cooccur_path.open("wb") as cooccur:
                 ret = run([args.glove_bin / "cooccur",
                            "-vocab-file", vocab_path] + glove_args,
-                          input=corpus, output=cooccur)
+                          stdin=corpus, stdout=cooccur)
                 if ret.returncode != 0:
                     raise RuntimeError("Cooccur exited with error code %i" % ret.returncode)
         pbar.update(1)
@@ -60,7 +60,7 @@ def main(args, glove_args):
         with cooccur_path.open("rb") as cooccur, \
                 cooccur_shuffle_path.open("wb") as cooccur_shuffled:
             ret = run([args.glove_bin / "shuffle"] + glove_args,
-                      input=cooccur, output=cooccur_shuffled)
+                      stdin=cooccur, stdout=cooccur_shuffled)
             if ret.returncode != 0:
                 raise RuntimeError("Cooccur shuffle exited with error code %i" % ret.returncode)
         pbar.update(1)
@@ -70,13 +70,12 @@ def main(args, glove_args):
         L.debug("Learning vectors")
         ret = run([args.glove_bin / "glove",
                    "-save-file", vector_path,
-                   "-binary", 2,
+                   "-binary", "2",
                    "-input-file", cooccur_shuffle_path,
                    "-vocab-file", vocab_path,
-                   "-exclude-file", args.exclude_path] + glove_args,
-                    input=cooccur, output=cooccur_shuffled)
+                   "-exclude-file", args.exclude_path] + glove_args)
         if ret.returncode != 0:
-            raise RuntimeError("Cooccur shuffle exited with error code %i" % ret.returncode)
+            raise RuntimeError("GloVe exited with error code %i" % ret.returncode)
         pbar.update(1)
 
 
@@ -86,7 +85,7 @@ if __name__ == '__main__':
     p.add_argument("exclude_path", help="Path to file listing pairs of words to exclude", type=Path)
     p.add_argument("out_dir", type=Path)
     p.add_argument("--glove_bin", help="Path to GloVe binaries",
-                   default=Path(__file__).parent / "selpref" / "glove" / "build")
+                   default=Path(__file__).absolute().parents[1] / "selpref" / "glove" / "build")
 
     args, glove_args = p.parse_known_args()
     main(args, glove_args)
