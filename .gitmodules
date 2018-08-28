@@ -1,0 +1,3 @@
+[submodule "selpref/glove"]
+	path = selpref/glove
+	url = git@github.com:hans/glove-filter.git
