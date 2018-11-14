@@ -59,10 +59,9 @@ def process_dependent(dep_idx, sentence):
     dependents.extend(node_dependents)
     queue.extend(node_dependents)
 
-  dependents = [sentence[idx] for idx in set(dependents)]
-  dependents = sorted(dependents, key=lambda d: d.id)
-  span_start, span_end = dependents[0].id, dependents[-1].id
-  return sentence[dep_idx], sentence[span_start:span_end + 1]
+  dependents = sorted(set(dependents))
+  span_start, span_end = dependents[0], dependents[-1]
+  return dep_idx, span_start, span_end
 
 
 def process_sentence(sentence, deprels=None):
@@ -82,34 +81,39 @@ def process_sentence(sentence, deprels=None):
                     if dep_token.head == idx
                     and (deprels is None or dep_token.deprel in deprels)]
 
-      yield token, dependents
+      yield idx, dependents
 
 
 def process_corpus(corpus_path, deprels):
   assert corpus_path.name.endswith(("conllu", "conll")), \
       "Only CoNLL-U corpus files supported."
 
-  sentences = read_conllx(corpus_path)
+  sentences = list(read_conllx(corpus_path))
   ret = []
-  for sentence in tqdm(sentences, desc="Sentence"):
+  for i, sentence in tqdm(enumerate(sentences), desc="Sentence"):
     for token, dependents in process_sentence(sentence, deprels):
-      yield token, dependents
+      ret.append((i, token, dependents))
+
+  return sentences, ret
 
 
 def main(args):
   deprels = args.include_deprel or None
-  ret = []
+  sentences, items = [], []
   for corpus in tqdm(args.corpus_path, desc="Corpus"):
-    for token, dependents in process_corpus(corpus, deprels=deprels):
-      # Convert namedtuples to dicts
-      token = token._asdict()
-      dependents = [(dep._asdict(), [child._asdict() for child in children])
-                    for dep, children in dependents]
+    sentence_start_idx = len(sentences)
 
-      ret.append((token, dependents))
+    c_sentences, c_items = process_corpus(corpus, deprels=deprels)
+    c_sentences = [[token._asdict() for token in sentence]
+                   for sentence in c_sentences]
+    sentences.extend(c_sentences)
+
+    for item in c_items:
+      i = item[0]
+      items.append((i + sentence_start_idx,) + item[1:])
 
   with args.out_path.open("w") as out:
-    json.dump(ret, out)
+    json.dump({"sentences": sentences, "items": items}, out)
 
 
 if __name__ == '__main__':
