@@ -4,10 +4,11 @@ Extract a database of verb argument structures from a corpus.
 
 
 from argparse import ArgumentParser
+from collections import namedtuple
 import json
 from pathlib import Path
 
-from collections import namedtuple
+from tqdm import tqdm
 
 
 Token = namedtuple("Token", ["id", "word", "lemma", "pos_univ", "pos", "morph", "head", "deprel"])
@@ -90,7 +91,7 @@ def process_corpus(corpus_path, deprels):
 
   sentences = read_conllx(corpus_path)
   ret = []
-  for sentence in sentences:
+  for sentence in tqdm(sentences, desc="Sentence"):
     for token, dependents in process_sentence(sentence, deprels):
       yield token, dependents
 
@@ -98,7 +99,7 @@ def process_corpus(corpus_path, deprels):
 def main(args):
   deprels = args.include_deprel or None
   ret = []
-  for corpus in args.corpus_path:
+  for corpus in tqdm(args.corpus_path, desc="Corpus"):
     for token, dependents in process_corpus(corpus, deprels=deprels):
       # Convert namedtuples to dicts
       token = token._asdict()
